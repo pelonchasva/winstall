@@ -67,3 +67,15 @@ export let checkTheme = () => {
 
   return isLight;
 }
+
+export let getFileExtension = (filename, separator='.') => {
+  let ext = null;
+
+  let lastIndex = filename.lastIndexOf(separator);
+
+  if(lastIndex > -1){
+    ext = filename.substring(lastIndex, filename.length);
+  }
+
+  return ext;
+}

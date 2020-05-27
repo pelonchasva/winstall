@@ -13,6 +13,11 @@ import Footer from "../components/Footer";
 import { FiCopy, FiDownload, FiHome } from "react-icons/fi";
 import Toggle from "react-toggle";
 
+import JSZip from "jszip";
+import JSZipUtils from "jszip-utils";
+import { saveAs } from "file-saver";
+import { getFileExtension } from "../utils/helpers";
+
 function Generate() {
     const { selectedApps } = useContext(SelectedContext);
     const [copyText, setCopyText] = useState("Copy to clipboard");
@@ -91,6 +96,51 @@ function Generate() {
       setCopyText("Copy to clipboard")
     }
 
+    let handleInstallers = () => {
+      let zip = new JSZip();
+      let zipFilename = `winstall_installers.zip`;
+      let count = 0;
+      let failedDownloads = [];
+
+      selectedApps.forEach(app => {
+        let appName = app.contents.Name;
+        let appVersion = app.contents.Version;
+
+        if(app.contents.Installers.length > 0){
+          let filename = `${appName} - v${appVersion}`;
+          let appUrl = app.contents.Installers[0].Url;
+          let fileExtension = getFileExtension(appUrl);
+
+          if(fileExtension === null){
+            failedDownloads.push({
+              'name': filename,
+              'url': appUrl
+            }); 
+          }
+
+          JSZipUtils.getBinaryContent(appUrl, function(err, data){
+            if(err){
+              console.log(`Unable to download the app: ${filename}.`);
+            } else {
+              zip.file(`${filename}${fileExtension}`, data, {binary:true});
+            }
+
+            count++;
+
+            if(count === selectedApps.length){
+              zip.generateAsync({type:'blob'}).then(function(content){
+                saveAs(content, zipFilename);
+              });
+
+              if(failedDownloads.length > 0){
+                console.log(JSON.stringify(failedDownloads));
+              }
+            }
+          });
+        }
+      });
+    }
+
     return (
       <div className="container generate-container">
         <div className="illu-box">
@@ -123,6 +173,11 @@ function Generate() {
               <button className="button accent" onClick={handleCopy}>
                 <FiCopy />
                 {copyText}
+              </button>
+
+              <button className="button" onClick={handleInstallers}>
+                <FiDownload />
+                Download Installers
               </button>
 
               <button className="button" onClick={handleBat}>
