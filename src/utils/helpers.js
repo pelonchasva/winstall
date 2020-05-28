@@ -68,14 +68,24 @@ export let checkTheme = () => {
   return isLight;
 }
 
-export let getFileExtension = (filename, separator='.') => {
-  let ext = null;
+export let getFilenameFromUrl = (url) => {
+  let filename = null;
 
-  let lastIndex = filename.lastIndexOf(separator);
+  let index = url.lastIndexOf('/');
 
-  if(lastIndex > -1){
-    ext = filename.substring(lastIndex, filename.length);
+  if(index > -1){
+    filename = url.substring(index + 1, url.length);
+
+    if(filename.lastIndexOf('.') === -1){
+      filename = null;
+    } else {
+      filename = decodeURIComponent(filename);
+    }
   }
 
-  return ext;
+  return filename;
+}
+
+export let isObjectEmpty = (obj) => {
+  return !Object.keys(obj).length;
 }

@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "axios": "^0.19.2",
     "file-saver": "^2.0.2",
     "fuzzysort": "^1.1.4",
     "jszip": "^3.4.0",
-    "jszip-utils": "^0.1.0",
     "node-sass": "^4.14.1",
     "react": "^16.13.1",
     "react-debounce-input": "^3.2.2",

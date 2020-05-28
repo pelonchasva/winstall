@@ -14,9 +14,9 @@ import { FiCopy, FiDownload, FiHome } from "react-icons/fi";
 import Toggle from "react-toggle";
 
 import JSZip from "jszip";
-import JSZipUtils from "jszip-utils";
 import { saveAs } from "file-saver";
-import { getFileExtension } from "../utils/helpers";
+import { getFilenameFromUrl, isObjectEmpty } from "../utils/helpers";
+import axios from "axios";
 
 function Generate() {
     const { selectedApps } = useContext(SelectedContext);
@@ -96,49 +96,71 @@ function Generate() {
       setCopyText("Copy to clipboard")
     }
 
+    // TODO: Display a message to let the user know the download is in progress
     let handleInstallers = () => {
       let zip = new JSZip();
       let zipFilename = `winstall_installers.zip`;
-      let count = 0;
       let failedDownloads = [];
 
+      let requests = [];
+
       selectedApps.forEach(app => {
-        let appName = app.contents.Name;
-        let appVersion = app.contents.Version;
-
         if(app.contents.Installers.length > 0){
-          let filename = `${appName} - v${appVersion}`;
           let appUrl = app.contents.Installers[0].Url;
-          let fileExtension = getFileExtension(appUrl);
 
-          if(fileExtension === null){
-            failedDownloads.push({
-              'name': filename,
-              'url': appUrl
-            }); 
-          }
-
-          JSZipUtils.getBinaryContent(appUrl, function(err, data){
-            if(err){
-              console.log(`Unable to download the app: ${filename}.`);
-            } else {
-              zip.file(`${filename}${fileExtension}`, data, {binary:true});
-            }
-
-            count++;
-
-            if(count === selectedApps.length){
-              zip.generateAsync({type:'blob'}).then(function(content){
-                saveAs(content, zipFilename);
-              });
-
-              if(failedDownloads.length > 0){
-                console.log(JSON.stringify(failedDownloads));
-              }
-            }
-          });
+          requests.push(request(appUrl));
         }
       });
+
+      Promise.allSettled(requests)
+      .then(function(results){
+        results.forEach((result) => {
+          if(result.status === "fulfilled"){
+            let value = result.value;
+            let requestUrl = value.config.url;
+            let responseUrl = value.request.responseURL;
+  
+            let requestFilename = getFilenameFromUrl(requestUrl);
+            let responseFilename = getFilenameFromUrl(responseUrl);
+  
+            let filename = requestFilename !== null ? requestFilename : responseFilename;
+  
+            if(filename !== null){
+              if(value.status === 200){
+                zip.file(filename, value.data, {binary:true});
+              } else {
+                failedDownloads.push({
+                  'url': requestUrl
+                });
+              }
+            } else {
+              failedDownloads.push({
+                'url': requestUrl
+              });
+            }
+          } else {
+            console.log(`Promise was rejected because ${result.reason}`);
+          }
+        });
+
+        if(!isObjectEmpty(zip.files)){
+          zip.generateAsync({type:'blob'}).then(function(content){
+            saveAs(content, zipFilename);
+          });
+        }
+
+        if(failedDownloads.length > 0){
+          alert('There were some applications that could not be downloaded.');
+          console.log(failedDownloads);
+        }
+      })
+      .catch(function(error){
+        console.log(error);
+      });
+    }
+
+    let request = (url) => {
+      return axios.get(url);
     }
 
     return (
